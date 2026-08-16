@@ -4,11 +4,38 @@
 
 > **ZCaps is a general-purpose lossless compression architecture based on adaptive contextual prediction and statistical entropy coding.**
 >
-> Instead of primarily searching for repeated byte sequences and replacing them with dictionary references, ZCaps continuously learns from the data stream, predicts likely upcoming symbols from context, and encodes prediction outcomes through an adaptive statistical model.
+> The current validated ZCaps implementation is operational and integrated into **ZNode**, Zetako's sovereign workspace platform. Alongside that production-oriented line, Zetako Compression Lab is now using reconstructed historical ZCaps research as a reference for new work on compression density, model mixing and multicore execution.
 
 [![Lossless](https://img.shields.io/badge/compression-lossless-0A7D5A)](#lossless-by-design)
 [![Research](https://img.shields.io/badge/status-active%20research-4B5DFF)](#research-status)
+[![ZNode](https://img.shields.io/badge/integration-ZNode-5B5BD6)](#current-implementation-status)
 [![Implementation](https://img.shields.io/badge/core-proprietary-555555)](#public-research-private-implementation)
+
+---
+
+## Current implementation status
+
+ZCaps is not only a laboratory prototype.
+
+The **current validated implementation works as a complete lossless codec and is integrated into ZNode**. The active product-oriented line therefore remains the modern ZCaps implementation: it is the reference for integration, deployment and practical throughput work.
+
+The newly reconstructed historical generation described later in this repository is **not a replacement for the current ZCaps implementation**. It is a research reference that gives us a second point on the compression-density / compute-cost curve and exposes ideas worth re-evaluating with modern hardware and implementation techniques.
+
+```text
+                         ZCaps
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+      Current validated line      Research line
+              │                         │
+        ZNode integration        historical reconstruction
+        practical throughput    ablations / model research
+        production evolution    Strong / Max experiments
+              │                         │
+              └────────────┬────────────┘
+                           │
+                  future validated work
+```
 
 ---
 
@@ -179,17 +206,74 @@ These are **raw compression-core measurements**, not end-to-end archive/applicat
 
 ---
 
+## Historical reconstruction: a new research baseline
+
+A historical ZCaps generation was recently reconstructed from archived design material and source fragments, then rebuilt as an executable lossless reference.
+
+The purpose of this work is not to revive an old product implementation. It gives the lab a validated historical baseline built around a richer predictive path, including multiple adaptive statistical signals, model combination and history-derived prediction before entropy coding.
+
+The reconstructed reference completed the same 50-file benchmark with **50/50 exact SHA-256 round trips**.
+
+### Reconstructed legacy snapshot
+
+| Measurement | Result |
+|---|---:|
+| Original data | 315.15 MiB |
+| Compressed data | 90.32 MiB |
+| Global ratio | **28.66%** |
+| Space reduction | **71.34%** |
+| Encode throughput | **2.12 MiB/s** |
+| Decode throughput | **1.89 MiB/s** |
+| Exact round trips | **50/50** |
+
+Selected corpus results:
+
+| Corpus | Ratio | Encode | Decode |
+|---|---:|---:|---:|
+| ENWIK | **31.53%** | **2.08 MiB/s** | **1.82 MiB/s** |
+| Silesia | **27.58%** | **2.15 MiB/s** | **1.93 MiB/s** |
+
+The result is useful precisely because the trade-off is so different from the current implementation: the historical architecture can reach strong compression density, but at dramatically higher compute cost.
+
+This gives ZCaps research two complementary references:
+
+- **current ZCaps** — practical throughput, validated operation and ZNode integration;
+- **reconstructed historical ZCaps** — a compression-density reference for studying richer prediction and model combination.
+
+The research question is now not simply which version is "better". It is:
+
+> **Which predictive mechanisms create measurable compression gains, what do they cost, and how much of that gain can be recovered in a modern implementation?**
+
+---
+
+## What the historical reconstruction teaches us
+
+The reconstructed generation confirms that the ZCaps research lineage explored several ideas that remain relevant today:
+
+- multiple adaptive statistical predictors rather than a single fixed model;
+- online confidence adjustment between predictive signals;
+- history-derived prediction combined with contextual modeling;
+- deterministic encoder/decoder state evolution;
+- statistical entropy coding driven by the resulting probability estimate.
+
+This is important because it turns historical work into something measurable. Individual mechanisms can now be removed, replaced or recombined and evaluated against the same benchmark suite.
+
+The public repository intentionally describes these ideas at an architectural level. Internal state layouts, tuning data and implementation details remain proprietary.
+
+---
+
 ## What we are researching now
 
 ZCaps development is deliberately separated into different optimization goals rather than forcing every workload into one compromise.
 
 ### Balanced
 
-The reference profile.
+The current validated reference profile.
 
 Research focus:
 
-- preserve the current validated compression behaviour;
+- preserve validated compression behaviour;
+- maintain practical integration in ZNode;
 - reduce implementation overhead;
 - improve compiler and architecture-specific code generation;
 - reduce end-to-end container cost without changing compressed-data semantics.
@@ -202,13 +286,54 @@ The objective is to trade a small amount of compression density for lower latenc
 
 Early experiments indicate that this is a promising direction, particularly for applications where CPU time or decode latency matters more than the final few percent of size.
 
-### Max
+### Strong / Max
 
 A compression-density research profile.
 
-Instead of simply changing tuning constants, this work investigates richer predictive capacity while preserving deterministic lossless decoding.
+The reconstructed historical architecture provides a useful reference for this work. Current experiments investigate which additional predictive mechanisms can improve density while remaining deterministic and lossless.
 
-Potential research areas include broader prediction sets, additional contextual signals and more expressive model selection. These experiments remain internal until they pass the same lossless validation requirements as the reference implementation.
+Research areas include:
+
+- ablation of historical predictive components;
+- richer model combination;
+- hybridization of current and historical predictors;
+- improved history and match-derived signals;
+- alternative model initialization strategies;
+- multicore and block-parallel execution for compute-heavy profiles.
+
+The objective is to build a **Pareto frontier between compression density and throughput**, rather than optimize only one number.
+
+### Matrix-conditioned and keyed-model research
+
+One experimental branch studies how different deterministic model initializations affect both compression behaviour and the resulting compressed representation.
+
+This creates two separate research questions:
+
+1. can alternative initial states improve compression density for particular or general-purpose workloads?
+2. can a model initialization derived from secret material be useful as an additional key-conditioned transformation inside a compression pipeline?
+
+The second question is **research only**. Zetako does not present model-conditioned compression as a replacement for established authenticated encryption. Any future security claim would require dedicated cryptanalysis and would remain separate from the standard ZCaps codec.
+
+---
+
+## Multicore research
+
+The strongest statistical models can be computationally expensive because prediction state evolves continuously with the stream.
+
+A direct bit-level parallelization would break that dependency, but independent block processing provides a practical research path:
+
+```text
+large input
+   │
+   ├── block A ──► core 1 ──► compressed block A
+   ├── block B ──► core 2 ──► compressed block B
+   ├── block C ──► core 3 ──► compressed block C
+   └── block D ──► core 4 ──► compressed block D
+```
+
+The trade-off is measurable: smaller independent blocks increase parallelism and random access, while larger blocks preserve more model history and may improve compression density.
+
+ZCaps research will therefore treat **block size, core count, throughput and compression ratio as a joint optimization problem** for Strong / Max profiles.
 
 ---
 
@@ -243,9 +368,10 @@ For public ZCaps research we follow a few rules:
 1. **Lossless validation comes first.** Every reported candidate must reconstruct the original exactly.
 2. **Known corpora are preferred.** Public benchmark sets make results easier to reproduce and compare.
 3. **Ratio and speed are reported together.** A codec that is smaller but dramatically slower is a different engineering choice, not automatically "better".
-4. **Core and product measurements are separated.** Raw codec throughput must not be confused with archive/container, hashing or filesystem overhead.
-5. **Failed experiments are useful research.** A fast experimental branch that fails exact reconstruction is considered a failed codec candidate, not a successful benchmark.
-6. **Hardware and methodology matter.** Results should always identify the platform, compiler and benchmark scope.
+4. **Current and historical lines are identified clearly.** Historical research results are not presented as current product performance.
+5. **Core and product measurements are separated.** Raw codec throughput must not be confused with archive/container, hashing or filesystem overhead.
+6. **Failed experiments are useful research.** A fast experimental branch that fails exact reconstruction is considered a failed codec candidate, not a successful benchmark.
+7. **Hardware and methodology matter.** Results should always identify the platform, compiler and benchmark scope.
 
 ---
 
@@ -265,29 +391,31 @@ It is a native general-purpose lossless compression research project centered on
 
 ## Research evolution
 
-The project has evolved through multiple internal generations. Across validated generations, an important observation has been the stability of the fundamental compression model while implementation throughput improved.
-
-That distinction guides current development:
+The project has evolved through multiple internal generations. The reconstruction of an earlier generation now makes part of that evolution directly measurable.
 
 ```text
-                 ZCaps research
-                       │
-          ┌────────────┴────────────┐
-          │                         │
-   model research             implementation research
-          │                         │
- prediction quality          CPU / cache / I/O
- adaptation                  architecture-specific paths
- ratio profiles              product-envelope overhead
-          │                         │
-          └────────────┬────────────┘
-                       │
-                 validated codec
+                   historical ZCaps research
+                             │
+                    reconstructed baseline
+                             │
+               ┌─────────────┴─────────────┐
+               │                           │
+        model discoveries          implementation lessons
+               │                           │
+               └─────────────┬─────────────┘
+                             │
+                      current ZCaps
+                             │
+                    validated in ZNode
+                             │
+               ┌─────────────┴─────────────┐
+               │                           │
+         Fast / Balanced              Strong / Max
 ```
 
-The goal is not to publish a sequence of version numbers for their own sake. Each public milestone should represent a measurable improvement in one of three dimensions:
+The goal is not to publish a sequence of version numbers for their own sake. Each public milestone should represent a measurable improvement in one or more dimensions:
 
-**compression density · throughput · robustness**
+**compression density · throughput · robustness · deployability**
 
 without sacrificing exact reconstruction.
 
@@ -302,6 +430,7 @@ It may contain:
 - architecture explanations at a non-proprietary level;
 - benchmark methodology;
 - benchmark results;
+- historical reconstruction results;
 - research notes;
 - version/milestone history;
 - reproducibility information;
@@ -320,7 +449,10 @@ As the public research record grows, this repository will add dedicated material
 - benchmark methodology and reproducibility;
 - corpus-by-corpus results;
 - evolution of validated ZCaps generations;
-- Fast / Balanced / Max research profiles;
+- historical vs. current research comparisons;
+- Fast / Balanced / Strong / Max research profiles;
+- multicore compression experiments;
+- model-initialization research;
 - comparisons with established general-purpose codecs;
 - architecture and platform performance notes.
 
@@ -344,4 +476,4 @@ Research project: **ZCaps — Adaptive Lossless Statistical Compressor**
 
 ---
 
-<sub>Benchmark figures in this repository represent specific research runs and may change as the implementation, compiler toolchain and methodology evolve. All performance claims should be interpreted together with their benchmark environment and validation scope.</sub>
+<sub>Benchmark figures in this repository represent specific research runs and may change as the implementation, compiler toolchain and methodology evolve. Historical reconstruction figures are research references and must not be interpreted as current ZNode product throughput. All performance claims should be read together with their benchmark environment and validation scope.</sub>
