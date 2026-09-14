@@ -1,479 +1,187 @@
 # ZCaps
 
-### Adaptive lossless statistical compression research by Zetako Compression Lab
+### Adaptive lossless compression for modern data infrastructure
 
-> **ZCaps is a general-purpose lossless compression architecture based on adaptive contextual prediction and statistical entropy coding.**
->
-> The current validated ZCaps implementation is operational and integrated into **ZNode**, Zetako's sovereign workspace platform. Alongside that production-oriented line, Zetako Compression Lab is now using reconstructed historical ZCaps research as a reference for new work on compression density, model mixing and multicore execution.
+> **ZCaps is Zetako's proprietary lossless compression engine for structured, machine-generated and scientific data.**
 
-[![Lossless](https://img.shields.io/badge/compression-lossless-0A7D5A)](#lossless-by-design)
-[![Research](https://img.shields.io/badge/status-active%20research-4B5DFF)](#research-status)
-[![ZNode](https://img.shields.io/badge/integration-ZNode-5B5BD6)](#current-implementation-status)
-[![Implementation](https://img.shields.io/badge/core-proprietary-555555)](#public-research-private-implementation)
+ZCaps is developed by **Zetako Compression Lab** as a general-purpose compression layer focused on compression density, exact reconstruction, selective access and modern server workloads.
 
----
+[![Lossless](https://img.shields.io/badge/compression-lossless-0A7D5A)](#lossless)
+[![Benchmarks](https://img.shields.io/badge/benchmarks-public-4B5DFF)](docs/BENCHMARKS.md)
+[![Implementation](https://img.shields.io/badge/core-proprietary-555555)](#public-results-private-implementation)
 
-## Current implementation status
-
-ZCaps is not only a laboratory prototype.
-
-The **current validated implementation works as a complete lossless codec and is integrated into ZNode**. The active product-oriented line therefore remains the modern ZCaps implementation: it is the reference for integration, deployment and practical throughput work.
-
-The newly reconstructed historical generation described later in this repository is **not a replacement for the current ZCaps implementation**. It is a research reference that gives us a second point on the compression-density / compute-cost curve and exposes ideas worth re-evaluating with modern hardware and implementation techniques.
-
-```text
-                         ZCaps
-                           │
-              ┌────────────┴────────────┐
-              │                         │
-      Current validated line      Research line
-              │                         │
-        ZNode integration        historical reconstruction
-        practical throughput    ablations / model research
-        production evolution    Strong / Max experiments
-              │                         │
-              └────────────┬────────────┘
-                           │
-                  future validated work
-```
+**Website:** https://zetako.ai/products/zcaps  
+**Benchmark index:** [docs/BENCHMARKS.md](docs/BENCHMARKS.md)  
+**Modern data corpus:** https://github.com/Zetako-Compression-Lab/zetako-modern-data-corpus
 
 ---
 
-## Why ZCaps exists
+## What ZCaps is built for
 
-Most widely deployed general-purpose compressors belong to families built around **dictionary matching**, **sequence matching**, or transformations designed to expose repeated patterns.
+Modern infrastructure continuously creates data that must be stored, moved and retrieved: API events, telemetry, logs, observability streams, database changes, enterprise records and scientific datasets.
 
-These approaches are extremely successful. DEFLATE, LZMA and Zstandard are examples of highly engineered codecs built on decades of research around repeated strings, match finding, dictionaries and entropy coding.
+ZCaps is designed as a compression layer for that environment.
 
-ZCaps explores a different question:
+Publicly validated capabilities include:
 
-> **What if the compressor focuses less on finding a previous copy of a sequence, and more on continuously learning what is statistically likely to come next?**
+- **lossless compression** — exact source reconstruction;
+- **adaptive behavior** across heterogeneous data rather than one file-type-specific path;
+- **high compression density** on structured and machine-generated workloads;
+- **selective range extraction** demonstrated in a separate large scientific-data campaign;
+- **parallel workload scaling** across independent files and processes;
+- **bounded deployment footprint** suitable for integration into private infrastructure.
 
-That is the research direction behind ZCaps.
-
-ZCaps is not intended as a reimplementation of gzip, Zstandard, Brotli, LZMA or another existing codec. It is an independent lossless compression architecture developed by Zetako Compression Lab.
-
----
-
-## Classical dictionary compression vs. ZCaps
-
-A simplified dictionary-based compressor often behaves conceptually like this:
-
-```text
-input bytes
-    │
-    ▼
-search previous data
-    │
-    ├── repeated sequence found ──► encode match / distance / length
-    │
-    └── no useful match ──────────► encode literal
-    │
-    ▼
-entropy coding
-    │
-    ▼
-compressed stream
-```
-
-ZCaps takes a different route:
-
-```text
-input bytes
-    │
-    ▼
-observe context
-    │
-    ▼
-adaptive prediction
-    │
-    ▼
-statistical confidence / model update
-    │
-    ▼
-entropy coding
-    │
-    ▼
-compressed stream
-```
-
-The distinction matters.
-
-| | Traditional LZ / dictionary family | ZCaps research direction |
-|---|---|---|
-| Primary question | "Where did this sequence appear before?" | "Given this context, what is likely to appear next?" |
-| Main representation | matches, distances, lengths, literals | prediction outcomes and literals |
-| Learning | usually dominated by match history / dictionary state | continuously adaptive statistical state |
-| Data view | repeated sequences | evolving byte-level context |
-| Core research focus | match finding, parsing, dictionary efficiency | prediction quality, adaptation, entropy efficiency |
-| Lossless | yes | yes |
-
-This is intentionally a high-level comparison. Modern compressors are complex systems and often combine several techniques. The table describes the **primary architectural difference ZCaps is investigating**, not every mechanism used by every existing codec.
+The current ZCaps product line is integrated into Zetako's own software stack, including ZNode compression workflows.
 
 ---
 
-## High-level ZCaps architecture
+# Benchmark highlights
 
-The production implementation is proprietary, but its public conceptual model can be described in three stages.
+## 1 GB modern-data corpus → 150.05 MB
 
-### 1. Context observation
+On the frozen **ZMDC-1G v1** corpus, ZCaps produced the smallest aggregate output among the tested configurations.
 
-ZCaps derives compact state from recently observed data and uses that state to identify previously learned behaviour associated with similar contexts.
-
-The goal is not simply to locate an earlier identical string. The goal is to estimate which symbol is most plausible next.
-
-### 2. Adaptive statistical prediction
-
-Prediction confidence evolves while the stream is processed.
-
-The model is **online and adaptive**: encoder and decoder update equivalent state deterministically as symbols are processed. No external model or pre-trained dictionary is required for the standard codec.
-
-### 3. Entropy coding
-
-Prediction decisions and literal information are converted into the final compressed representation using statistical entropy coding.
-
-Because encoder and decoder evolve the same model from the same history, the original byte stream can be reconstructed exactly.
-
-```mermaid
-flowchart LR
-    A[Input bytes] --> B[Context observation]
-    B --> C[Adaptive prediction]
-    C --> D{Prediction outcome}
-    D -->|likely symbol| E[Compact statistical event]
-    D -->|new / unexpected symbol| F[Literal representation]
-    E --> G[Entropy coder]
-    F --> G
-    G --> H[ZCaps compressed stream]
-
-    H -. deterministic reconstruction .-> I[Lossless decode]
-```
-
----
-
-## Lossless by design
-
-For ZCaps, "better compression" is never allowed to mean "approximately correct".
-
-Every production candidate must preserve the source byte-for-byte.
-
-Our benchmark workflow therefore treats compression ratio and throughput as secondary to the first requirement:
-
-> **decode(encode(data)) == data**
-
-Validation uses cryptographic hashes of the source and reconstructed output. Experimental variants that improve speed or size but fail exact round-trip validation are rejected from the production line.
-
----
-
-## Research status
-
-ZCaps is under active development.
-
-The current validated implementation has been tested across well-known lossless-compression corpora including:
-
-- Calgary Corpus
-- Canterbury Corpus
-- Canterbury Large
-- Canterbury Artificial
-- ENWIK
-- Silesia Corpus
-
-A recent validation pass covered **50/50 corpus files successfully**, with exact SHA-256 round trips.
-
-### Current compression snapshot
-
-The following figures are examples from the current research build. `Ratio` means compressed size divided by original size: lower is better.
-
-| Corpus | Current ratio | Space reduction |
+| Configuration | Compressed size | Ratio |
 |---|---:|---:|
-| Canterbury | 21.67% | 78.33% |
-| Canterbury Large | 27.39% | 72.61% |
-| Silesia | 29.40% | 70.60% |
-| ENWIK | 30.44% | 69.56% |
-| Calgary | 31.84% | 68.16% |
+| **ZCaps V12 -6** | **150.05 MB** | **6.66×** |
+| xz -6 | 159.53 MB | 6.27× |
+| bzip2 -6 | 165.08 MB | 6.06× |
+| 7-Zip LZMA2 -5 | 168.27 MB | 5.94× |
+| Brotli -6 | 174.09 MB | 5.74× |
+| zstd -6 | 182.47 MB | 5.48× |
+| gzip -6 | 199.88 MB | 5.00× |
+| LZ4 -6 | 237.03 MB | 4.22× |
 
-These values are research measurements, not universal promises. Compression behaviour varies substantially with input structure, entropy, file size, compiler, platform and measurement method.
+ZCaps led **7 of 9** ZMDC workload families: API, collaboration, database/CDC, logs, observability, telemetry and transactions.
 
-### Current throughput snapshot
+The high-entropy control remained essentially incompressible at approximately **1:1**, providing an important control against artificial compression claims.
 
-On an Apple Silicon M4 development system, a core-only benchmark of the current implementation measured approximately:
+[Full ZMDC results →](docs/ZMDC-1G.md)
 
-| Corpus | Encode | Decode |
+The ZMDC corpus was frozen before the codec comparison and is published independently with its reference release and hashes.
+
+---
+
+## 41.1 GiB heterogeneous corpus
+
+A broader campaign covered **1,663 files across 25 corpora**, including genomic data, JSON, structured text, medical imaging, object meshes, text, binary data, audio and raw video.
+
+| ZCaps level | Aggregate ratio | Space reduction | Encode | Decode |
+|---|---:|---:|---:|---:|
+| Default | 6.00× | 83.33% | 86.56 MiB/s | 64.63 MiB/s |
+| 6 | 6.40× | 84.39% | 61.79 MiB/s | 55.45 MiB/s |
+| 12 | **6.76×** | **85.20%** | 47.74 MiB/s | 34.44 MiB/s |
+
+At level 12, **41.1 GiB was reduced to approximately 6.09 GiB**.
+
+[Full 25-corpus results →](docs/GENERAL-41G.md)
+
+---
+
+## Genomics and scientific data
+
+A separate scientific-data campaign covered **30 large datasets**, three ZCaps levels, **90 compression runs** and **270 targeted 4 MiB extraction runs** on an Intel Core i9-13980HX laptop with NVMe storage.
+
+Selected maximum-density results:
+
+| Dataset | Source size | ZCaps ratio |
 |---|---:|---:|
-| Silesia | **81.38 MiB/s** | **44.42 MiB/s** |
-| ENWIK | **54.28 MiB/s** | **42.13 MiB/s** |
+| VCF chr21 — 1000 Genomes phase 3 | 11.23 GiB | **134.6×** |
+| GTF | 4.45 GiB | **73.07×** |
+| CSV AllNuclMetadata | 7.83 GiB | **59.77×** |
+| Human FASTA | 64.20 GiB | **36.78×** |
+| Human GFF3 | 1.65 GiB | **36.08×** |
+| dbSNP chrY JSON | 13.13 GiB | **33.31×** |
+| OrthoXML Compara 116 | 28.85 GiB | **29.06×** |
+| GOA UniProt GAF | 98.90 GiB | **18.63×** |
 
-These are **raw compression-core measurements**, not end-to-end archive/application throughput. Integrity checks, container handling, storage and filesystem behaviour add additional cost in a complete product path.
+Across the documented campaign, targeted **4 MiB** extraction was observed between **0.11 s and 0.75 s**, with exact extracted output validation.
 
----
+This campaign used a separate ZCaps build from the current ZMDC V12 comparison and is reported independently to avoid mixing build generations or hardware environments.
 
-## Historical reconstruction: a new research baseline
-
-A historical ZCaps generation was recently reconstructed from archived design material and source fragments, then rebuilt as an executable lossless reference.
-
-The purpose of this work is not to revive an old product implementation. It gives the lab a validated historical baseline built around a richer predictive path, including multiple adaptive statistical signals, model combination and history-derived prediction before entropy coding.
-
-The reconstructed reference completed the same 50-file benchmark with **50/50 exact SHA-256 round trips**.
-
-### Reconstructed legacy snapshot
-
-| Measurement | Result |
-|---|---:|
-| Original data | 315.15 MiB |
-| Compressed data | 90.32 MiB |
-| Global ratio | **28.66%** |
-| Space reduction | **71.34%** |
-| Encode throughput | **2.12 MiB/s** |
-| Decode throughput | **1.89 MiB/s** |
-| Exact round trips | **50/50** |
-
-Selected corpus results:
-
-| Corpus | Ratio | Encode | Decode |
-|---|---:|---:|---:|
-| ENWIK | **31.53%** | **2.08 MiB/s** | **1.82 MiB/s** |
-| Silesia | **27.58%** | **2.15 MiB/s** | **1.93 MiB/s** |
-
-The result is useful precisely because the trade-off is so different from the current implementation: the historical architecture can reach strong compression density, but at dramatically higher compute cost.
-
-This gives ZCaps research two complementary references:
-
-- **current ZCaps** — practical throughput, validated operation and ZNode integration;
-- **reconstructed historical ZCaps** — a compression-density reference for studying richer prediction and model combination.
-
-The research question is now not simply which version is "better". It is:
-
-> **Which predictive mechanisms create measurable compression gains, what do they cost, and how much of that gain can be recovered in a modern implementation?**
+[Genomics overview →](docs/GENOMICS.md)  
+[Level 1 table →](docs/GENOMICS-L1.md) · [Level 6 table →](docs/GENOMICS-L6.md) · [Level 12 table →](docs/GENOMICS-L12.md)
 
 ---
 
-## What the historical reconstruction teaches us
+## Parallel workload scaling
 
-The reconstructed generation confirms that the ZCaps research lineage explored several ideas that remain relevant today:
+On the frozen ZMDC-1G batch, processing independent files concurrently increased aggregate throughput without changing the compression ratio.
 
-- multiple adaptive statistical predictors rather than a single fixed model;
-- online confidence adjustment between predictive signals;
-- history-derived prediction combined with contextual modeling;
-- deterministic encoder/decoder state evolution;
-- statistical entropy coding driven by the resulting probability estimate.
+| Concurrent processes | Compression | Decompression | Ratio |
+|---:|---:|---:|---:|
+| 1 | 35.79 MB/s | 41.03 MB/s | 6.66× |
+| 4 | **113.25 MB/s** | **110.22 MB/s** | 6.66× |
 
-This is important because it turns historical work into something measurable. Individual mechanisms can now be removed, replaced or recombined and evaluated against the same benchmark suite.
+Measured median batch scaling from one to four independent ZCaps processes:
 
-The public repository intentionally describes these ideas at an architectural level. Internal state layouts, tuning data and implementation details remain proprietary.
+- **3.16× compression throughput**
+- **2.69× decompression throughput**
 
----
+This is **multi-file workload scaling**, not a claim that the current V12 build internally accelerates one file with four threads.
 
-## What we are researching now
-
-ZCaps development is deliberately separated into different optimization goals rather than forcing every workload into one compromise.
-
-### Balanced
-
-The current validated reference profile.
-
-Research focus:
-
-- preserve validated compression behaviour;
-- maintain practical integration in ZNode;
-- reduce implementation overhead;
-- improve compiler and architecture-specific code generation;
-- reduce end-to-end container cost without changing compressed-data semantics.
-
-### Fast
-
-A throughput-oriented research profile.
-
-The objective is to trade a small amount of compression density for lower latency, smaller working state and higher encode/decode throughput.
-
-Early experiments indicate that this is a promising direction, particularly for applications where CPU time or decode latency matters more than the final few percent of size.
-
-### Strong / Max
-
-A compression-density research profile.
-
-The reconstructed historical architecture provides a useful reference for this work. Current experiments investigate which additional predictive mechanisms can improve density while remaining deterministic and lossless.
-
-Research areas include:
-
-- ablation of historical predictive components;
-- richer model combination;
-- hybridization of current and historical predictors;
-- improved history and match-derived signals;
-- alternative model initialization strategies;
-- multicore and block-parallel execution for compute-heavy profiles.
-
-The objective is to build a **Pareto frontier between compression density and throughput**, rather than optimize only one number.
-
-### Matrix-conditioned and keyed-model research
-
-One experimental branch studies how different deterministic model initializations affect both compression behaviour and the resulting compressed representation.
-
-This creates two separate research questions:
-
-1. can alternative initial states improve compression density for particular or general-purpose workloads?
-2. can a model initialization derived from secret material be useful as an additional key-conditioned transformation inside a compression pipeline?
-
-The second question is **research only**. Zetako does not present model-conditioned compression as a replacement for established authenticated encryption. Any future security claim would require dedicated cryptanalysis and would remain separate from the standard ZCaps codec.
+[CPU, memory and scaling results →](docs/PARALLELISM.md)
 
 ---
 
-## Multicore research
+## Historical reference
 
-The strongest statistical models can be computationally expensive because prediction state evolves continuously with the stream.
+Zetako Compression Lab also maintains a reconstructed historical ZCaps reference as a research baseline. It completed a 50-file suite with exact round trips and achieved **71.34% aggregate space reduction**, but at much lower throughput than the modern line.
 
-A direct bit-level parallelization would break that dependency, but independent block processing provides a practical research path:
+[Historical reference benchmark →](docs/HISTORICAL-REFERENCE.md)
+
+---
+
+## Lossless
+
+Every benchmark result published here is expected to reconstruct the original data exactly. Public benchmark campaigns use exact output verification before a result is accepted.
 
 ```text
-large input
-   │
-   ├── block A ──► core 1 ──► compressed block A
-   ├── block B ──► core 2 ──► compressed block B
-   ├── block C ──► core 3 ──► compressed block C
-   └── block D ──► core 4 ──► compressed block D
+decode(encode(data)) == data
 ```
 
-The trade-off is measurable: smaller independent blocks increase parallelism and random access, while larger blocks preserve more model history and may improve compression density.
-
-ZCaps research will therefore treat **block size, core count, throughput and compression ratio as a joint optimization problem** for Strong / Max profiles.
+Compression density never takes precedence over exact recovery.
 
 ---
 
-## Why adaptive prediction is interesting
+## Benchmark record
 
-Dictionary compressors are excellent when the data contains reusable sequences that can be represented efficiently as references.
+The benchmark documentation is organized by campaign so that results from different machines and ZCaps generations are not presented as if they came from one identical build.
 
-A predictive statistical model attacks redundancy from another angle.
+- [Benchmark index](docs/BENCHMARKS.md)
+- [ZMDC-1G modern data](docs/ZMDC-1G.md)
+- [41.1 GiB broad corpus](docs/GENERAL-41G.md)
+- [Genomics and selective access](docs/GENOMICS.md)
+- [Parallel scaling and resources](docs/PARALLELISM.md)
+- [Historical reference](docs/HISTORICAL-REFERENCE.md)
 
-Consider structured data where many symbols are not necessarily part of one long repeated phrase but are highly predictable from local context:
-
-```text
-{"type":"event","status":"ok","time":...}
-{"type":"event","status":"ok","time":...}
-{"type":"event","status":"error","time":...}
-```
-
-A dictionary codec can exploit repeated strings.
-
-A contextual predictor can additionally learn that after a particular evolving context, some symbols are much more probable than others. The entropy coder can then assign very little information to highly expected outcomes and more information to surprising ones.
-
-This principle is not unique to ZCaps; statistical and context-modeling compression has a long research history. What is proprietary to Zetako is the specific ZCaps architecture, state representation, adaptation strategy, implementation and optimization work used to make that approach practical as a general-purpose codec.
+Measured results are workload- and platform-specific. They are not universal guarantees for arbitrary inputs or hardware.
 
 ---
 
-## Benchmark philosophy
+## Public results, private implementation
 
-Compression benchmarks are easy to make misleading.
+This repository is a **public research and benchmark record**.
 
-For public ZCaps research we follow a few rules:
+It publishes:
 
-1. **Lossless validation comes first.** Every reported candidate must reconstruct the original exactly.
-2. **Known corpora are preferred.** Public benchmark sets make results easier to reproduce and compare.
-3. **Ratio and speed are reported together.** A codec that is smaller but dramatically slower is a different engineering choice, not automatically "better".
-4. **Current and historical lines are identified clearly.** Historical research results are not presented as current product performance.
-5. **Core and product measurements are separated.** Raw codec throughput must not be confused with archive/container, hashing or filesystem overhead.
-6. **Failed experiments are useful research.** A fast experimental branch that fails exact reconstruction is considered a failed codec candidate, not a successful benchmark.
-7. **Hardware and methodology matter.** Results should always identify the platform, compiler and benchmark scope.
+- measured compression results;
+- workload and platform context;
+- lossless-validation status;
+- public research milestones;
+- capability-level product information.
 
----
-
-## What ZCaps is not
-
-ZCaps is **not**:
-
-- a lossy compressor;
-- a wrapper around gzip, Zstandard, Brotli or LZMA;
-- a file-type-specific compressor;
-- a pre-trained machine-learning model;
-- a public-source implementation at this stage.
-
-It is a native general-purpose lossless compression research project centered on adaptive statistical prediction.
+The production ZCaps source code and proprietary implementation details remain private.
 
 ---
 
-## Research evolution
+## About Zetako
 
-The project has evolved through multiple internal generations. The reconstruction of an earlier generation now makes part of that evolution directly measurable.
+**Zetako Compression Lab** develops original technologies for compression, data infrastructure and sovereign software.
 
-```text
-                   historical ZCaps research
-                             │
-                    reconstructed baseline
-                             │
-               ┌─────────────┴─────────────┐
-               │                           │
-        model discoveries          implementation lessons
-               │                           │
-               └─────────────┬─────────────┘
-                             │
-                      current ZCaps
-                             │
-                    validated in ZNode
-                             │
-               ┌─────────────┴─────────────┐
-               │                           │
-         Fast / Balanced              Strong / Max
-```
+- Website: https://zetako.ai
+- ZCaps: https://zetako.ai/products/zcaps
+- ZMDC: https://github.com/Zetako-Compression-Lab/zetako-modern-data-corpus
+- Contact: contact@zetako.ai
 
-The goal is not to publish a sequence of version numbers for their own sake. Each public milestone should represent a measurable improvement in one or more dimensions:
-
-**compression density · throughput · robustness · deployability**
-
-without sacrificing exact reconstruction.
-
----
-
-## Public research, private implementation
-
-This repository is intentionally a **public research and benchmark record**.
-
-It may contain:
-
-- architecture explanations at a non-proprietary level;
-- benchmark methodology;
-- benchmark results;
-- historical reconstruction results;
-- research notes;
-- version/milestone history;
-- reproducibility information;
-- comparisons with established compression families.
-
-It does **not** contain the production compression source code, proprietary state structures, internal tuning data or implementation details required to reproduce the ZCaps engine.
-
-This allows Zetako Compression Lab to document the work transparently while preserving the intellectual property of the codec itself.
-
----
-
-## Planned public sections
-
-As the public research record grows, this repository will add dedicated material for:
-
-- benchmark methodology and reproducibility;
-- corpus-by-corpus results;
-- evolution of validated ZCaps generations;
-- historical vs. current research comparisons;
-- Fast / Balanced / Strong / Max research profiles;
-- multicore compression experiments;
-- model-initialization research;
-- comparisons with established general-purpose codecs;
-- architecture and platform performance notes.
-
----
-
-## About Zetako Compression Lab
-
-ZCaps is developed by **Zetako Compression Lab**, part of Zetako's research into lossless compression architectures for general-purpose data, constrained systems and high-volume infrastructure.
-
-Other Zetako compression research includes specialized work for blockchain data and embedded/constrained environments. ZCaps is the laboratory's general-purpose adaptive statistical compression line.
-
----
-
-## Contact
-
-**Zetako**  
-Luxembourg  
-contact@zetako.ai
-
-Research project: **ZCaps — Adaptive Lossless Statistical Compressor**
-
----
-
-<sub>Benchmark figures in this repository represent specific research runs and may change as the implementation, compiler toolchain and methodology evolve. Historical reconstruction figures are research references and must not be interpreted as current ZNode product throughput. All performance claims should be read together with their benchmark environment and validation scope.</sub>
+© Zetako SARL
