@@ -12,6 +12,7 @@ Results from different campaigns are kept separate because hardware, workloads a
 | [Broad 41.1 GiB corpus](GENERAL-41G.md) | 1,663 files, 25 corpora, 3 levels | **41.1 GiB → 6.09 GiB** at level 12 |
 | [Genomics and selective access](GENOMICS.md) | 30 large scientific datasets, 3 levels | Up to **134.6:1** on VCF chr21; measured 4 MiB targeted extraction between **0.11 s and 0.75 s** |
 | [Parallel workload scaling](PARALLELISM.md) | Frozen ZMDC-1G batch | **3.16×** aggregate compression throughput and **2.69×** aggregate decode throughput with 4 independent processes vs 1 |
+| [Historical reference](HISTORICAL-REFERENCE.md) | Reconstructed 50-file research baseline | **71.34%** aggregate space reduction; exact **50/50** round trips |
 
 ## ZMDC-1G v1 comparison snapshot
 
