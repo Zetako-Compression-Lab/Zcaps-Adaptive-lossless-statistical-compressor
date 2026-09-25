@@ -10,6 +10,7 @@ Results from different campaigns are kept separate because hardware, workloads a
 |---|---|---|
 | [ZMDC-1G modern data](ZMDC-1G.md) | 1.00 GB, 9 modern workload families | **150.05 MB** aggregate output; ZCaps led **7 of 9** workload families |
 | [Broad 41.1 GiB corpus](GENERAL-41G.md) | 1,663 files, 25 corpora, 3 levels | **41.1 GiB → 6.09 GiB** at level 12 |
+| [Selective / random access](RANDOM-ACCESS.md) | 270 targeted 4 MiB extractions across 90 compressed archives | Exact validated ranges; measured extraction between **0.11 s and 0.75 s** |
 | [Genomics and selective access](GENOMICS.md) | 30 large scientific datasets, 3 levels | Up to **134.6:1** on VCF chr21; measured 4 MiB targeted extraction between **0.11 s and 0.75 s** |
 | [Parallel workload scaling](PARALLELISM.md) | Frozen ZMDC-1G batch | **3.16×** aggregate compression throughput and **2.69×** aggregate decode throughput with 4 independent processes vs 1 |
 | [Historical reference](HISTORICAL-REFERENCE.md) | Reconstructed 50-file research baseline | **71.34%** aggregate space reduction; exact **50/50** round trips |
@@ -32,3 +33,5 @@ Frozen corpus: **1,000,037,807 primary bytes**, 13 primary files, 9 workload fam
 The ZMDC corpus was frozen before this comparison. The corpus and its reference hashes are public in the [Zetako Modern Data Corpus repository](https://github.com/Zetako-Compression-Lab/zetako-modern-data-corpus).
 
 All reported ZCaps candidates were validated as lossless using exact output verification. Measured results describe the stated campaigns and are not universal guarantees for arbitrary data or hardware.
+
+The selective / random-access results come from the genomics campaign and are indexed separately because partial retrieval is a distinct capability from compression density. They do not represent an additional benchmark population.

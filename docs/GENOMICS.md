@@ -6,6 +6,8 @@ Benchmark system: **Intel Core i9-13980HX, 16 GiB RAM, NVMe SSD, Windows 11**.
 
 The campaign covered **90 compression runs** and **270 targeted 4 MiB extraction runs**. Extracted data was checked against the source for exact lossless reconstruction.
 
+For a capability-focused explanation, methodology summary and scope boundaries, see [Selective / random access](RANDOM-ACCESS.md).
+
 ## Campaign totals
 
 - Aggregate input across compression runs: **2.04 TiB**
