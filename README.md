@@ -4,7 +4,7 @@
 
 > **ZCaps is Zetako's proprietary lossless compression engine for structured, machine-generated and scientific data.**
 
-ZCaps is developed by **Zetako Compression Lab** as a general-purpose compression layer focused on compression density, exact reconstruction, selective access and modern server workloads.
+ZCaps is developed by **Zetako Compression Lab** as a general-purpose compression layer focused on compression density, exact reconstruction, selective and random access, and modern server workloads.
 
 [![Lossless](https://img.shields.io/badge/compression-lossless-0A7D5A)](#lossless)
 [![Benchmarks](https://img.shields.io/badge/benchmarks-public-4B5DFF)](docs/BENCHMARKS.md)
@@ -27,11 +27,34 @@ Publicly validated capabilities include:
 - **lossless compression** — exact source reconstruction;
 - **adaptive behavior** across heterogeneous data rather than one file-type-specific path;
 - **high compression density** on structured and machine-generated workloads;
-- **selective range extraction** demonstrated in a separate large scientific-data campaign;
+- **selective / random range access** demonstrated in a separate large scientific-data campaign;
 - **parallel workload scaling** across independent files and processes;
 - **bounded deployment footprint** suitable for integration into private infrastructure.
 
 The current ZCaps product line is integrated into Zetako's own software stack, including ZNode compression workflows.
+
+---
+
+## Selective / random access
+
+ZCaps can extract a requested range from a compressed dataset without requiring the application to reconstruct the entire source first. This makes compression useful not only for archival storage, but also for workflows that repeatedly retrieve small regions from much larger datasets.
+
+The published scientific-data campaign validated:
+
+- **270 targeted extractions** across 90 compressed archives;
+- a fixed requested range of **4 MiB** per extraction;
+- observed extraction times from **0.11 s to 0.75 s** on datasets as large as **98.90 GiB**;
+- exact byte-for-byte validation of every extracted range.
+
+These are measured campaign results, not universal latency guarantees. Performance depends on the dataset, compression level, chunk layout, storage and host system.
+
+[Selective / random access overview →](docs/RANDOM-ACCESS.md)
+
+### Direction: compressed-data infrastructure
+
+ZCaps is being developed as a building block for data systems that keep data compressed while supporting targeted retrieval and partial access. This creates a path toward storage workflows that can place and access data according to operational needs, including future hot/cold tiering scenarios.
+
+This is a product direction, not a claim that ZCaps is already a complete database or tiered-storage engine. Public claims in this repository remain limited to implemented and measured capabilities.
 
 ---
 
@@ -99,7 +122,8 @@ Across the documented campaign, targeted **4 MiB** extraction was observed betwe
 
 This campaign used a separate ZCaps build from the current ZMDC V12 comparison and is reported independently to avoid mixing build generations or hardware environments.
 
-[Genomics overview →](docs/GENOMICS.md)  
+[Genomics overview →](docs/GENOMICS.md) · [Selective / random access →](docs/RANDOM-ACCESS.md)
+
 [Level 1 table →](docs/GENOMICS-L1.md) · [Level 6 table →](docs/GENOMICS-L6.md) · [Level 12 table →](docs/GENOMICS-L12.md)
 
 ---
@@ -151,6 +175,7 @@ The benchmark documentation is organized by campaign so that results from differ
 - [Benchmark index](docs/BENCHMARKS.md)
 - [ZMDC-1G modern data](docs/ZMDC-1G.md)
 - [41.1 GiB broad corpus](docs/GENERAL-41G.md)
+- [Selective / random access](docs/RANDOM-ACCESS.md)
 - [Genomics and selective access](docs/GENOMICS.md)
 - [Parallel scaling and resources](docs/PARALLELISM.md)
 - [Historical reference](docs/HISTORICAL-REFERENCE.md)
